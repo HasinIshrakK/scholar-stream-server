@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const PORT = process.env.PORT || 3000;
 const app = express();
@@ -42,6 +42,28 @@ async function run() {
             } catch (err) {
                 console.error(err);
                 res.status(500).json({ error: "Failed to fetch scholarships" });
+            }
+        });
+
+        app.get("/scholarships/:id", async (req, res) => {
+            try {
+                const id = req.params.id;
+
+                if (!ObjectId.isValid(id)) {
+                    return res.status(400).json({ error: "Invalid ID format" });
+                }
+
+                const result = await db.collection(scholarshipsCollection).findOne({ _id: new ObjectId(id) });
+
+                if (!result) {
+                    return res.status(404).json({ error: "Scholarship not found" });
+                }
+
+                res.json(result);
+
+            } catch (err) {
+                console.error(err);
+                res.status(500).json({ error: "Failed to fetch scholarship" });
             }
         });
 
