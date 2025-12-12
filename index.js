@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const stripe = require('stripe')(process.env.STRIPE);
 
 const PORT = process.env.PORT || 3000;
 const app = express();
@@ -70,6 +71,8 @@ async function run() {
             }
         });
 
+        // applications
+
         app.get("/applications", async (req, res) => {
             try {
                 const applications = await Applications.find({}).toArray();
@@ -97,6 +100,8 @@ async function run() {
                 res.status(500).send({ success: false, error: err.message });
             }
         });
+
+        // reviews
 
         app.get('/reviews', async (req, res) => {
 
@@ -145,6 +150,8 @@ async function run() {
             }
         });
 
+        // users
+
         app.post("/users", async (req, res) => {
             try {
                 const user = req.body;
@@ -162,6 +169,52 @@ async function run() {
                 res.status(500).send({ success: false, error: err.message });
             }
         });
+
+        // Payment related apis
+        app.post('/create-checkout-session', async (req, res) => {
+            try {
+                const { applicationFees, scholarshipName, userEmail, applicationId } = req.body;
+
+                if (!applicationFees || !scholarshipName || !userEmail || !applicationId) {
+                    return res.status(400).json({
+                        error: "Missing required fields",
+                        received: req.body
+                    });
+                }
+
+                const amount = parseInt(applicationFees) * 100;
+
+                const session = await stripe.checkout.sessions.create({
+                    line_items: [
+                        {
+                            price_data: {
+                                currency: 'USD',
+                                product_data: {
+                                    name: scholarshipName,
+                                },
+                                unit_amount: amount,
+                            },
+                            quantity: 1,
+                        },
+                    ],
+                    mode: 'payment',
+                    metadata: {
+                        applicationId: applicationId,
+                        userEmail: userEmail,
+                    },
+                    success_url: `http://localhost:5173/dashboard/payment-success`,
+                    cancel_url: `http://localhost:5173/dashboard/payment-cancelled`,
+                });
+
+                res.json({ url: session.url });
+
+            } catch (error) {
+                console.error("STRIPE ERROR:", error);
+                res.status(400).json({ error: error.message });
+            }
+        });
+
+
 
         console.log("MongoDB connected successfully.");
     } catch (err) {
