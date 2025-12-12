@@ -23,6 +23,7 @@ const databaseName = "ScholarStreamDB";
 const scholarshipsCollection = "scholarships";
 const usersCollection = "users";
 const reviewsCollection = "reviews";
+const applicationsCollection = "applications";
 
 app.get("/", (req, res) => {
     res.send("ScholarStream Server is running!");
@@ -36,6 +37,7 @@ async function run() {
         const Scholarships = db.collection(scholarshipsCollection);
         const Users = db.collection(usersCollection);
         const Reviews = db.collection(reviewsCollection);
+        const Applications = db.collection(applicationsCollection);
 
         app.get("/scholarships", async (req, res) => {
             try {
@@ -65,6 +67,34 @@ async function run() {
             } catch (err) {
                 console.error(err);
                 res.status(500).json({ error: "Failed to fetch scholarship" });
+            }
+        });
+
+        app.get("/applications", async (req, res) => {
+            try {
+                const applications = await Applications.find({}).toArray();
+                res.json(applications);
+            } catch (err) {
+                console.error(err);
+                res.status(500).json({ error: "Failed to fetch applications" });
+            }
+        });
+
+        app.post("/applications", async (req, res) => {
+            try {
+                const applications = req.body;
+
+                const exist = await Applications.findOne({ email: applications.email });
+
+                if (!exist) {
+                    await Applications.insertOne(applications);
+                    return res.send({ success: true, message: "Applications added" });
+                }
+
+                res.send({ success: true, message: "Applications already added" });
+            } catch (err) {
+                console.error(err);
+                res.status(500).send({ success: false, error: err.message });
             }
         });
 
