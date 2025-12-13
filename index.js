@@ -83,6 +83,27 @@ async function run() {
             }
         });
 
+        app.get("/applications/:id", async (req, res) => {
+            try {
+                const id = req.params.id;
+
+                if (!ObjectId.isValid(id)) {
+                    return res.status(400).json({ error: "Invalid applications ID" });
+                }
+
+                const result = await Applications.findOne({ _id: new ObjectId(id) });
+
+                if (!result) {
+                    return res.status(404).json({ error: "Applications not found" });
+                }
+
+                res.json(result);
+            } catch (err) {
+                console.error(err);
+                res.status(500).json({ error: "Failed to fetch applications" });
+            }
+        });
+
         app.post("/applications", async (req, res) => {
             try {
                 const applications = req.body;
@@ -95,6 +116,63 @@ async function run() {
                 }
 
                 res.send({ success: true, message: "Applications already added" });
+            } catch (err) {
+                console.error(err);
+                res.status(500).send({ success: false, error: err.message });
+            }
+        });
+
+        app.patch("/applications/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+                const updatedData = req.body;
+
+                if (!ObjectId.isValid(id)) {
+                    return res.status(400).send({ success: false, message: "Invalid application ID" });
+                }
+
+                const filter = { _id: new ObjectId(id) };
+                const updateDoc = {
+                    $set: {
+                        ...updatedData,
+                        updatedAt: new Date(),
+                    },
+                };
+
+                const result = await Applications.updateOne(filter, updateDoc);
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).send({ success: false, message: "Application not found" });
+                }
+
+                res.send({
+                    success: true, message: "Application updated successfully",
+                });
+
+            } catch (err) {
+                console.error(err);
+                res.status(500).send({ success: false, error: err.message });
+            }
+        });
+
+        app.delete("/applications/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+
+                if (!ObjectId.isValid(id)) {
+                    return res.status(400).send({ success: false, message: "Invalid application ID" });
+                }
+
+                const result = await Applications.deleteOne({ _id: new ObjectId(id) });
+
+                if (result.deletedCount === 0) {
+                    return res.status(404).send({ success: false, message: "Application not found" });
+                }
+
+                res.send({
+                    success: true, message: "Application deleted successfully",
+                });
+
             } catch (err) {
                 console.error(err);
                 res.status(500).send({ success: false, error: err.message });
@@ -131,22 +209,25 @@ async function run() {
             }
         });
 
-        app.post("/many", async (req, res) => {
+        app.post("/reviews", async (req, res) => {
             try {
                 const reviews = req.body;
-                if (!Array.isArray(reviews) || reviews.length === 0) {
-                    return res.status(400).json({ message: "Provide an array of reviews" });
+
+                const exist = await Reviews.findOne({ email: reviews.userEmail });
+
+                await Reviews.insertOne(reviews);
+                return res.send({ success: true, message: "Reviews added" });
+
+                if (!exist) {
+                    await Reviews.insertOne(reviews);
+                    return res.send({ success: true, message: "Reviews added" });
                 }
 
-                const insertedReviews = await Reviews.insertMany(reviews);
-                res.status(201).json({
-                    message: "Reviews inserted successfully",
-                    count: insertedReviews.length,
-                    data: insertedReviews
-                });
+                res.send({ success: true, message: "Reviews already added" });
+                
             } catch (err) {
                 console.error(err);
-                res.status(500).json({ message: "Server error", error: err.message });
+                res.status(500).send({ success: false, error: err.message });
             }
         });
 
