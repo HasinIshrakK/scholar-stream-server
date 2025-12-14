@@ -40,6 +40,8 @@ async function run() {
         const Reviews = db.collection(reviewsCollection);
         const Applications = db.collection(applicationsCollection);
 
+        // scholarships
+
         app.get("/scholarships", async (req, res) => {
             try {
                 const scholarships = await Scholarships.find({}).toArray();
@@ -68,6 +70,68 @@ async function run() {
             } catch (err) {
                 console.error(err);
                 res.status(500).json({ error: "Failed to fetch scholarship" });
+            }
+        });
+
+        app.post("/scholarships", async (req, res) => {
+            try {
+                const scholarship = req.body;
+
+                await Scholarships.insertOne(scholarship);
+                return res.send({ success: true, message: "Scholarships saved" });
+
+            } catch (err) {
+                console.error(err);
+                res.status(500).send({ success: false, error: err.message });
+            }
+        });
+
+        app.patch("/scholarships/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+                const updatedData = req.body;
+
+                const filter = { _id: new ObjectId(id) };
+                const updateDoc = {
+                    $set: {
+                        ...updatedData,
+                        updatedAt: new Date(),
+                    },
+                };
+
+                const result = await Scholarships.updateOne(filter, updateDoc);
+
+                if (result.matchedCount === 0) {
+                    return res.send({ success: false, message: "Scholarship not found" });
+                }
+
+                res.send({
+                    success: true, message: "Scholarship updated successfully",
+                });
+
+            } catch (err) {
+                console.error(err);
+                res.status(500).send({ success: false, error: err.message });
+            }
+        });
+
+        app.delete("/scholarships/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+
+                const scholarship = await Scholarships.deleteOne({ _id: new ObjectId(id) });
+
+                if (scholarship.deletedCount === 0) {
+                    return res.status(404).send({ success: false, message: "Scholarship not found" });
+                }
+
+                res.send({
+                    success: true, message: "Scholarship deleted successfully",
+                });
+
+            } catch (err) {
+                console.error(err);
+                res.status(500).send({ success: false, error: err.message });
             }
         });
 
