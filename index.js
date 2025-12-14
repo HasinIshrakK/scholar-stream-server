@@ -75,11 +75,17 @@ async function run() {
 
         app.get("/applications", async (req, res) => {
             try {
-                const applications = await Applications.find({}).toArray();
-                res.json(applications);
+                const email = req.query.email;
+                const query = {}
+                if (email) {
+                    query.userEmail = email;
+                }
+
+                const cursor = Applications.find(query);
+                const result = await cursor.toArray();
+                res.send(result);
             } catch (err) {
-                console.error(err);
-                res.status(500).json({ error: "Failed to fetch applications" });
+                res.status(500).send({ message: "Server Error" });
             }
         });
 
@@ -106,19 +112,21 @@ async function run() {
 
         app.post("/applications", async (req, res) => {
             try {
-                const applications = req.body;
+                const application = req.body;
 
-                const exist = await Applications.findOne({ email: applications.email });
+                const exist = await Applications.findOne({ userEmail: application.userEmail, scholarshipId: application.scholarshipId, });
 
-                if (!exist) {
-                    await Applications.insertOne(applications);
-                    return res.send({ success: true, message: "Applications added" });
+                if (exist) {
+                    return res.send({ success: false, message: "You have already applied for this scholarship", });
                 }
 
-                res.send({ success: true, message: "Applications already added" });
+                await Applications.insertOne(application);
+
+                res.send({ success: true, message: "Application submitted successfully", });
+
             } catch (err) {
                 console.error(err);
-                res.status(500).send({ success: false, error: err.message });
+                res.status(500).send({ success: false, error: err.message, });
             }
         });
 
@@ -224,7 +232,64 @@ async function run() {
                 }
 
                 res.send({ success: true, message: "Reviews already added" });
-                
+
+            } catch (err) {
+                console.error(err);
+                res.status(500).send({ success: false, error: err.message });
+            }
+        });
+
+        app.patch("/reviews/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+                const updatedData = req.body;
+
+                if (!ObjectId.isValid(id)) {
+                    return res.status(400).send({ success: false, message: "Invalid review ID" });
+                }
+
+                const filter = { _id: new ObjectId(id) };
+                const updateDoc = {
+                    $set: {
+                        ...updatedData,
+                        updatedAt: new Date(),
+                    },
+                };
+
+                const result = await Reviews.updateOne(filter, updateDoc);
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).send({ success: false, message: "Reviews not found" });
+                }
+
+                res.send({
+                    success: true, message: "Reviews updated successfully",
+                });
+
+            } catch (err) {
+                console.error(err);
+                res.status(500).send({ success: false, error: err.message });
+            }
+        });
+
+        app.delete("/reviews/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+
+                if (!ObjectId.isValid(id)) {
+                    return res.status(400).send({ success: false, message: "Invalid review ID" });
+                }
+
+                const result = await Reviews.deleteOne({ _id: new ObjectId(id) });
+
+                if (result.deletedCount === 0) {
+                    return res.status(404).send({ success: false, message: "Review not found" });
+                }
+
+                res.send({
+                    success: true, message: "Review deleted successfully",
+                });
+
             } catch (err) {
                 console.error(err);
                 res.status(500).send({ success: false, error: err.message });
