@@ -298,6 +298,16 @@ async function run() {
 
         // users
 
+        app.get("/users", async (req, res) => {
+            try {
+                const users = await Users.find({}).toArray();
+                res.json(users);
+            } catch (err) {
+                console.error(err);
+                res.status(500).json({ error: "Failed to fetch users" });
+            }
+        });
+
         app.post("/users", async (req, res) => {
             try {
                 const user = req.body;
@@ -310,6 +320,55 @@ async function run() {
                 }
 
                 res.send({ success: true, message: "User already exists" });
+            } catch (err) {
+                console.error(err);
+                res.status(500).send({ success: false, error: err.message });
+            }
+        });
+
+        app.patch("/users/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+                const updatedData = req.body;
+
+                const filter = { _id: new ObjectId(id) };
+                const updateDoc = {
+                    $set: {
+                        ...updatedData,
+                        updatedAt: new Date(),
+                    },
+                };
+
+                const user = await Users.updateOne(filter, updateDoc);
+
+                if (user.matchedCount === 0) {
+                    return res.status(404).send({ success: false, message: "User not found" });
+                }
+
+                res.send({
+                    success: true, message: "User updated successfully",
+                });
+
+            } catch (err) {
+                console.error(err);
+                res.status(500).send({ success: false, error: err.message });
+            }
+        });
+
+        app.delete("/users/:id", async (req, res) => {
+            try {
+                const { id } = req.params;
+
+                const user = await Users.deleteOne({ _id: new ObjectId(id) });
+
+                if (user.deletedCount === 0) {
+                    return res.status(404).send({ success: false, message: "User not found" });
+                }
+
+                res.send({
+                    success: true, message: "User deleted successfully",
+                });
+
             } catch (err) {
                 console.error(err);
                 res.status(500).send({ success: false, error: err.message });
@@ -359,7 +418,6 @@ async function run() {
                 res.status(400).json({ error: error.message });
             }
         });
-
 
 
         console.log("MongoDB connected successfully.");
