@@ -95,7 +95,6 @@ async function run() {
                 const updateDoc = {
                     $set: {
                         ...updatedData,
-                        updatedAt: new Date(),
                     },
                 };
 
@@ -440,15 +439,13 @@ async function run() {
         });
 
         // Payment related apis
+
         app.post('/create-checkout-session', async (req, res) => {
             try {
                 const { applicationFees, scholarshipName, userEmail, applicationId } = req.body;
 
                 if (!applicationFees || !scholarshipName || !userEmail || !applicationId) {
-                    return res.status(400).json({
-                        error: "Missing required fields",
-                        received: req.body
-                    });
+                    return res.status(400).json({ error: "Missing required fields" });
                 }
 
                 const amount = parseInt(applicationFees) * 100;
@@ -458,9 +455,7 @@ async function run() {
                         {
                             price_data: {
                                 currency: 'USD',
-                                product_data: {
-                                    name: scholarshipName,
-                                },
+                                product_data: { name: scholarshipName },
                                 unit_amount: amount,
                             },
                             quantity: 1,
@@ -468,11 +463,11 @@ async function run() {
                     ],
                     mode: 'payment',
                     metadata: {
-                        applicationId: applicationId,
-                        userEmail: userEmail,
+                        applicationId,
+                        userEmail,
                     },
-                    success_url: `http://localhost:5173/dashboard/payment-success`,
-                    cancel_url: `http://localhost:5173/dashboard/payment-cancelled`,
+                    success_url: `http://localhost:5173/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+                    cancel_url: `http://localhost:5173/dashboard/payment-failed/${applicationId}`,
                 });
 
                 res.json({ url: session.url });
@@ -480,6 +475,51 @@ async function run() {
             } catch (error) {
                 console.error("STRIPE ERROR:", error);
                 res.status(400).json({ error: error.message });
+            }
+        });
+
+        app.patch("/verify-payment/:session_id", async (req, res) => {
+            try {
+                const { session_id } = req.params;
+
+                if (!session_id)
+                    return res.status(400).json({ success: false, error: "Missing session id" });
+
+                const session = await stripe.checkout.sessions.retrieve(session_id);
+
+                if (!session)
+                    return res.status(404).json({ success: false, error: "Invalid session" });
+
+                const applicationId = session.metadata.applicationId;
+
+                const application = await Applications.findOne({
+                    _id: new ObjectId(applicationId),
+                });
+
+                if (!application)
+                    return res.status(404).json({ success: false, error: "Application not found" });
+
+                // ❌ Payment failed
+                if (session.payment_status !== "paid") {
+                    return res.json({ success: false });
+                }
+
+                // ✅ Update payment status
+                await Applications.updateOne(
+                    { _id: new ObjectId(applicationId) },
+                    { $set: { paymentStatus: "paid", paidAt: new Date(), stripeSessionId: session.id } }
+                );
+
+                res.json({
+                    success: true,
+                    scholarshipName: application.scholarshipName,
+                    universityName: application.universityName,
+                    amountPaid: session.amount_total / 100,
+                    currency: session.currency,
+                });
+            } catch (error) {
+                console.error(error);
+                res.status(500).json({ success: false, error: "Server error" });
             }
         });
 
