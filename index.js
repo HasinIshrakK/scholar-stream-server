@@ -371,6 +371,27 @@ async function run() {
             }
         });
 
+        app.get("/users/:email", async (req, res) => {
+            const { email } = req.params;
+
+            if (!email) {
+                return res.status(400).json({ error: "Email is required" });
+            }
+
+            try {
+                const user = await Users.findOne({ email });
+
+                if (!user) {
+                    return res.status(404).json({ role: "student" });
+                }
+
+                res.json({ role: user.role || "student" });
+            } catch (err) {
+                console.error("Failed to fetch user role:", err);
+                res.status(500).json({ error: "Failed to fetch user role" });
+            }
+        });
+
         app.post("/users", async (req, res) => {
             try {
                 const user = req.body;
@@ -499,12 +520,10 @@ async function run() {
                 if (!application)
                     return res.status(404).json({ success: false, error: "Application not found" });
 
-                // ❌ Payment failed
                 if (session.payment_status !== "paid") {
                     return res.json({ success: false });
                 }
 
-                // ✅ Update payment status
                 await Applications.updateOne(
                     { _id: new ObjectId(applicationId) },
                     { $set: { paymentStatus: "paid", paidAt: new Date(), stripeSessionId: session.id } }
