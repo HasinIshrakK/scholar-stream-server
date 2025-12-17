@@ -44,11 +44,30 @@ async function run() {
 
         app.get("/scholarships", async (req, res) => {
             try {
-                const scholarships = await Scholarships.find({}).toArray();
-                res.json(scholarships);
-            } catch (err) {
-                console.error(err);
-                res.status(500).json({ error: "Failed to fetch scholarships" });
+                const { search, degree, category, country } = req.query;
+
+                const query = {};
+
+                if (search) {
+                    query.$or = [
+                        { scholarshipName: { $regex: search, $options: "i" } },
+                        { universityName: { $regex: search, $options: "i" } },
+                        { degree: { $regex: search, $options: "i" } }
+                    ];
+                }
+
+                if (degree) query.degree = degree;
+                if (category) query.scholarshipCategory = category;
+                if (country) query.universityCountry = country;
+
+                const result = await Scholarships
+                    .find(query)
+                    .toArray();
+
+                res.json(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).json({ error: "Server error" });
             }
         });
 
