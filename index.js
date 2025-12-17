@@ -44,7 +44,7 @@ async function run() {
 
         app.get("/scholarships", async (req, res) => {
             try {
-                const { search, degree, category, country } = req.query;
+                const { search, degree, category, country, sort, order } = req.query;
 
                 const query = {};
 
@@ -60,9 +60,15 @@ async function run() {
                 if (category) query.scholarshipCategory = category;
                 if (country) query.universityCountry = country;
 
-                const result = await Scholarships
-                    .find(query)
-                    .toArray();
+                let sortQuery = {};
+                if (sort) {
+                    const sortOrder = order === "asc" ? 1 : -1;
+                    sortQuery[sort] = sortOrder;
+                } else {
+                    sortQuery.scholarshipPostDate = -1;
+                }
+
+                const result = await Scholarships.find(query).sort(sortQuery).toArray();
 
                 res.json(result);
             } catch (error) {
