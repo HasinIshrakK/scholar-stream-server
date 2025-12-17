@@ -32,7 +32,7 @@ app.get("/", (req, res) => {
 
 async function run() {
     try {
-        await client.connect();
+        // await client.connect();
         const db = client.db(databaseName);
 
         const Scholarships = db.collection(scholarshipsCollection);
@@ -512,8 +512,8 @@ async function run() {
                         applicationId,
                         userEmail,
                     },
-                    success_url: `http://localhost:5173/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-                    cancel_url: `http://localhost:5173/dashboard/payment-failed/${applicationId}`,
+                    success_url: `https://scholar-stream-app.web.app/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+                    cancel_url: `https://scholar-stream-app.web.app/dashboard/payment-failed/${applicationId}`,
                 });
 
                 res.json({ url: session.url });
